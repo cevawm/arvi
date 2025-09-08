@@ -309,3 +309,57 @@ def kepmodel_report(self, fit_keplerians=3, save=None, nasaexo_title=False):
 
 
     return fig, m
+
+
+
+def kepmodel_outlier_report(self, fit_keplerians=3, save=None, nasaexo_title=False):
+    import matplotlib.pyplot as plt
+    import matplotlib.gridspec as gridspec
+    from matplotlib.backends.backend_pdf import PdfPages
+    logger = setup_logger()
+
+    def set_align_for_column(table, col, align="left"):
+        cells = [key for key in table._cells if key[1] == col]
+        for cell in cells:
+            table._cells[cell]._loc = align
+            table._cells[cell]._text.set_horizontalalignment(align) 
+
+    from .kepmodel_wrapper import model
+    m = model(self)
+
+    while fit_keplerians > 0:
+        if m.add_keplerian_from_periodogram():
+            fit_keplerians -= 1
+        else:
+            break
+
+    m.fit()
+
+
+    # size = A4
+    size = 8.27, 11.69
+    fig = plt.figure(figsize=size, constrained_layout=True)
+    gs = gridspec.GridSpec(2, 1, figure=fig)
+
+    # first row, all columns
+    ax1 = plt.subplot(gs[0, :])
+
+    if nasaexo_title:
+        title = str(self.planets).replace('(', '\n').replace(')', '')
+        star, planets = title.split('\n')
+        planets = planets.replace('planets,', 'known planets\n')
+        ax1.set_title(star, loc='left', fontsize=14)
+        ax1.set_title(planets, loc='right', fontsize=10)
+    else:
+        title = f'{self.star}'
+        ax1.set_title(title, loc='left', fontsize=14)
+    # ax1.set_title(r"\href{http://www.google.com}{link}", color='blue',
+    #               loc='center')
+
+    m.plot(ax=ax1, N_in_label=True, tooltips=False, remove_50000=True)
+
+    ax2 = plt.subplot(gs[1, :])
+    m.plot_resids(ax=ax2)
+
+
+    return fig, m

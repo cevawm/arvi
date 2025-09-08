@@ -138,6 +138,43 @@ class model:
                     color=color)
 
         return fig, ax
+    
+    #plotting the residuals of each instrument, as 
+    #well identifying outliers by MAD clipping the residuals (per instrument)
+    def plot_resids(self, **kwargs):  #this does not exist in arvi plotting.....this function is AI generated...need to refine!!
+        res = self.model.residuals()
+        sig = np.sqrt(self.model.cov.A)
+        tt = self.s._tt()
+        time_offset = 50000 if 'remove_50000' in kwargs else 0
+
+        for i, inst in enumerate(self.s):
+            inst_name = inst.instruments[0].replace('-', '_')
+            val = self.model.get_param(f'lin.offset_{inst_name}')
+            x = np.array([inst.mtime.min(), inst.mtime.max()]) - time_offset
+            y = [0, 0]
+            ax.plot(x, y, ls='--', color=f'C{i}')
+            mask = (tt > inst.mtime.min()) & (tt < inst.mtime.max())
+            color = adjust_lightness(f'C{i}', 1.2)
+            ax.plot(tt[mask] - time_offset,
+                    val + self.model.keplerian_model(tt)[mask],
+                    color=color)
+
+            sel = self.s.instrument_array[self.s.mask] == inst_name
+            res_inst = res[sel]
+            med = np.median(res_inst)
+            mad = np.median(np.abs(res_inst - med))
+            outlier_mask = np.abs(res_inst - med) > 5 * mad
+            if np.any(outlier_mask):
+                ax.plot(self.s.mtime[sel][outlier_mask] - time_offset,
+                        res_inst[outlier_mask], 'o', mfc='none',
+                        mec='red', mew=1, ms=10, label='outliers')
+
+            ax.errorbar(self.s.mtime[sel] - time_offset,
+                        res[sel], sig[sel], fmt='.', rasterized=True,
+                        alpha=0.7)
+
+        return fig, ax
+
 
     def plot_phasefolding(self, planets=None, ax=None):
         t = self.model.t
