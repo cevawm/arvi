@@ -9,6 +9,7 @@ from spleaf.term import Error, InstrumentJitter
 
 from .setup_logger import setup_logger
 from .utils import timer, adjust_lightness
+from .stats import sigmaclip_median_custom as doMADclip
 
 
 class model:
@@ -141,7 +142,7 @@ class model:
     
     #plotting the residuals of each instrument, as 
     #well identifying outliers by MAD clipping the residuals (per instrument)
-    def plot_resids(self, **kwargs):  #this does not exist in arvi plotting.....this function is AI generated...need to refine!!
+    def plot_resids(self, mad_threshold = 5, **kwargs):  #this does not exist in arvi plotting.....this function is AI generated...need to refine!!
         res = self.model.residuals()
         sig = np.sqrt(self.model.cov.A)
         tt = self.s._tt()
@@ -149,21 +150,21 @@ class model:
 
         for i, inst in enumerate(self.s):
             inst_name = inst.instruments[0].replace('-', '_')
-            val = self.model.get_param(f'lin.offset_{inst_name}')
-            x = np.array([inst.mtime.min(), inst.mtime.max()]) - time_offset
-            y = [0, 0]
-            ax.plot(x, y, ls='--', color=f'C{i}')
-            mask = (tt > inst.mtime.min()) & (tt < inst.mtime.max())
-            color = adjust_lightness(f'C{i}', 1.2)
-            ax.plot(tt[mask] - time_offset,
-                    val + self.model.keplerian_model(tt)[mask],
-                    color=color)
-
             sel = self.s.instrument_array[self.s.mask] == inst_name
-            res_inst = res[sel]
-            med = np.median(res_inst)
-            mad = np.median(np.abs(res_inst - med))
-            outlier_mask = np.abs(res_inst - med) > 5 * mad
+
+            color = adjust_lightness(f'C{i}', 1.2)
+            
+            #getting the MAD clipping limits and median value for the current instrument residuals
+            MAD_res, median = doMADclip(res, low=mad_threshold, high=mad_threshold)
+
+            #plotting the median residual value for the current intrument
+            x = np.array([inst.mtime.min(), inst.mtime.max()]) - time_offset
+            y = [median, median]
+            ax.plot(x, y, ls='--', color=f'C{i}')
+
+            #identifying the outlier points based on the MAD clipping limits
+            #and plotting them as X's on the residuals plot
+            outlier_mask = ((res < MAD_res.lower) | (res > MAD_res.upper))
             if np.any(outlier_mask):
                 ax.plot(self.s.mtime[sel][outlier_mask] - time_offset,
                         res_inst[outlier_mask], 'o', mfc='none',
