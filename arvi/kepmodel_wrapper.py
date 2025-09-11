@@ -148,6 +148,12 @@ class model:
         tt = self.s._tt()
         time_offset = 50000 if 'remove_50000' in kwargs else 0
 
+        if 'ax' in kwargs:
+            ax = kwargs.pop('ax')
+            fig = ax.figure
+        else:
+            fig, ax = plt.subplots(1, 1, constrained_layout=True)
+
         for i, inst in enumerate(self.s):
             inst_name = inst.instruments[0].replace('-', '_')
             sel = self.s.instrument_array[self.s.mask] == inst_name
@@ -160,19 +166,23 @@ class model:
             #plotting the median residual value for the current intrument
             x = np.array([inst.mtime.min(), inst.mtime.max()]) - time_offset
             y = [median, median]
-            ax.plot(x, y, ls='--', color=f'C{i}')
+            ax.plot(x, y, ls='-', color=f'C{i}')
+
+            ylow = [MAD_res.lower, MAD_res.lower]
+            yup = [MAD_res.upper, MAD_res.upper]
+            ax.plot(x, ylow, ls='--', color=f'C{i}')
+            ax.plot(x, yup, ls='--', color=f'C{i}')
 
             #identifying the outlier points based on the MAD clipping limits
             #and plotting them as X's on the residuals plot
             outlier_mask = ((res < MAD_res.lower) | (res > MAD_res.upper))
             if np.any(outlier_mask):
                 ax.plot(self.s.mtime[sel][outlier_mask] - time_offset,
-                        res_inst[outlier_mask], 'o', mfc='none',
+                        res[sel][outlier_mask], 'x', mfc='none',
                         mec='red', mew=1, ms=10, label='outliers')
 
             ax.errorbar(self.s.mtime[sel] - time_offset,
-                        res[sel], sig[sel], fmt='.', rasterized=True,
-                        alpha=0.7)
+                        res[sel], sig[sel], color=color)
 
         return fig, ax
 
