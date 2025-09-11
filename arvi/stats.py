@@ -106,7 +106,8 @@ def sigmaclip_median(a, low=4.0, high=4.0, k=1/norm.ppf(3/4)):
 
     return SigmaclipResult(c, critlower, critupper)
 
-
+#need to discuss the differences between this function and the one in arvi.stats
+#with João!!
 def sigmaclip_median_custom(a, low=4.0, high=4.0):
     """
     Same as arvi.stats.sigmaclip_median but without performing 
