@@ -167,12 +167,12 @@ class model:
             #plotting the median residual value for the current intrument
             x = np.array([inst.mtime.min(), inst.mtime.max()]) - time_offset
             y = [median, median]
-            ax.plot(x, y, ls='-', color=f'C{i}', label=f'{inst_name} median')
+            ax.plot(x, y, ls='-', color=color, label=f'{inst_name} median residuals')
 
             ylow = [MAD_res.lower, MAD_res.lower]
             yup = [MAD_res.upper, MAD_res.upper]
-            ax.plot(x, ylow, ls='--', color=f'C{i}', label=f'{inst_name} {mad_threshold} MAD limits')
-            ax.plot(x, yup, ls='--', color=f'C{i}')
+            ax.plot(x, ylow, ls='--', color=color, label=f'{inst_name} {mad_threshold} MAD limits')
+            ax.plot(x, yup, ls='--', color=color)
 
             #identifying the outlier points based on the MAD clipping limits
             #and plotting them as X's on the residuals plot
@@ -180,16 +180,18 @@ class model:
             if np.any(outlier_mask):
                 ax.plot(self.s.mtime[sel][outlier_mask] - time_offset,
                         res[sel][outlier_mask], 'x', mfc='none',
-                        mec='red', mew=1, ms=10, label='outliers')
+                        mec='red', mew=1, ms=10, zorder = 4, label='outliers')
 
             ax.errorbar(self.s.mtime[sel] - time_offset,
-                        res[sel], sig[sel], marker = 'o',color=color)
+                        res[sel], sig[sel], marker = 'o', linestyle = None, color=f'C{i}')
 
             #hopefully this works and creates a mask list that is equivalent in 
             #length to the number of data points in the original RV time series, and 
             #matches the order of the instrument array original RV time series
             outliers.append(outlier_mask)
                 
+
+        ax.minorticks_on()
         leg = ax.legend()
 
         ax.set_ylabel(f'r [{self.s.units}]')
