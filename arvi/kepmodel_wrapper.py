@@ -167,11 +167,11 @@ class model:
             #plotting the median residual value for the current intrument
             x = np.array([inst.mtime.min(), inst.mtime.max()]) - time_offset
             y = [median, median]
-            ax.plot(x, y, ls='-', color=f'C{i}')
+            ax.plot(x, y, ls='-', color=f'C{i}', label=f'{inst_name} median')
 
             ylow = [MAD_res.lower, MAD_res.lower]
             yup = [MAD_res.upper, MAD_res.upper]
-            ax.plot(x, ylow, ls='--', color=f'C{i}')
+            ax.plot(x, ylow, ls='--', color=f'C{i}', label=f'{inst_name} {mad_threshold} MAD limits')
             ax.plot(x, yup, ls='--', color=f'C{i}')
 
             #identifying the outlier points based on the MAD clipping limits
@@ -183,13 +183,20 @@ class model:
                         mec='red', mew=1, ms=10, label='outliers')
 
             ax.errorbar(self.s.mtime[sel] - time_offset,
-                        res[sel], sig[sel], color=color)
+                        res[sel], sig[sel], marker = 'o',color=color)
 
             #hopefully this works and creates a mask list that is equivalent in 
             #length to the number of data points in the original RV time series, and 
             #matches the order of the instrument array original RV time series
             outliers.append(outlier_mask)
+                
+        leg = ax.legend()
 
+        ax.set_ylabel(f'r [{self.s.units}]')
+        if 'remove_50000' in kwargs:
+            ax.set_xlabel('BJD - 2450000 [days]')
+        else:
+            ax.set_xlabel('BJD - 2400000 [days]')
 
         flat_outliers = [item for sublist in outliers for item in sublist]
         
