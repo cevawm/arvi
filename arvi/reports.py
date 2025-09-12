@@ -361,14 +361,15 @@ def kepmodel_outlier_report(self, fit_keplerians=3, mad_threshold = 5, save=None
 
     ax1.legend(prop={'family': 'monospace'})
     
-    ax1.xaxis.set_major_formatter(NullFormatter())
 
     ax2 = plt.subplot(gs[1, :])
     _, _, outliers = m.plot_resids(mad_threshold=mad_threshold, ax=ax2, remove_50000=True)
 
     ax2.legend(prop={'family': 'monospace'})
 
-    ax1.get_shared_x_axes().join(ax1, ax2)
+    ax2.sharex(ax1)
+    ax1.xaxis.set_major_formatter(NullFormatter())
+
 
 
 
