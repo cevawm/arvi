@@ -154,6 +154,7 @@ class model:
         else:
             fig, ax = plt.subplots(1, 1, constrained_layout=True)
 
+        outliers = []
         for i, inst in enumerate(self.s):
             inst_name = inst.instruments[0].replace('-', '_')
             sel = self.s.instrument_array[self.s.mask] == inst_name
@@ -161,7 +162,7 @@ class model:
             color = adjust_lightness(f'C{i}', 1.2)
             
             #getting the MAD clipping limits and median value for the current instrument residuals
-            MAD_res, median = doMADclip(res, low=mad_threshold, high=mad_threshold)
+            MAD_res, median = doMADclip(res[sel], low=mad_threshold, high=mad_threshold)
 
             #plotting the median residual value for the current intrument
             x = np.array([inst.mtime.min(), inst.mtime.max()]) - time_offset
@@ -175,7 +176,7 @@ class model:
 
             #identifying the outlier points based on the MAD clipping limits
             #and plotting them as X's on the residuals plot
-            outlier_mask = ((res < MAD_res.lower) | (res > MAD_res.upper))
+            outlier_mask = ((res[sel] < MAD_res.lower) | (res[sel] > MAD_res.upper))
             if np.any(outlier_mask):
                 ax.plot(self.s.mtime[sel][outlier_mask] - time_offset,
                         res[sel][outlier_mask], 'x', mfc='none',
@@ -184,7 +185,15 @@ class model:
             ax.errorbar(self.s.mtime[sel] - time_offset,
                         res[sel], sig[sel], color=color)
 
-        return fig, ax
+            #hopefully this works and creates a mask list that is equivalent in 
+            #length to the number of data points in the original RV time series, and 
+            #matches the order of the instrument array original RV time series
+            outliers.append(outlier_mask)
+
+
+        flat_outliers = [item for sublist in outliers for item in sublist]
+        
+        return fig, ax, flat_outliers
 
 
     def plot_phasefolding(self, planets=None, ax=None):

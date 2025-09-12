@@ -312,7 +312,7 @@ def kepmodel_report(self, fit_keplerians=3, save=None, nasaexo_title=False):
 
 
 
-def kepmodel_outlier_report(self, fit_keplerians=3, save=None, nasaexo_title=False):
+def kepmodel_outlier_report(self, fit_keplerians=3, mad_threshold = 5, save=None, nasaexo_title=False):
     import matplotlib.pyplot as plt
     import matplotlib.gridspec as gridspec
     from matplotlib.backends.backend_pdf import PdfPages
@@ -359,7 +359,7 @@ def kepmodel_outlier_report(self, fit_keplerians=3, save=None, nasaexo_title=Fal
     m.plot(ax=ax1, N_in_label=True, tooltips=False, remove_50000=True)
 
     ax2 = plt.subplot(gs[1, :])
-    m.plot_resids(ax=ax2)
+    _, _, outliers = m.plot_resids(mad_threshold=mad_threshold, ax=ax2)
 
 
-    return fig, m
+    return fig, m, outliers
