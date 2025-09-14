@@ -171,28 +171,39 @@ class model:
 
             ylow = [MAD_res.lower, MAD_res.lower]
             yup = [MAD_res.upper, MAD_res.upper]
-            ax.plot(x, ylow, ls='--', color=color, label=f'{inst_name} {mad_threshold} MAD limits')
-            ax.plot(x, yup, ls='--', color=color)
+            ax.plot(x, ylow, ls=':', color=color, label=f'{inst_name} {mad_threshold} MAD limits')
+            ax.plot(x, yup, ls=':', color=color)
 
             #identifying the outlier points based on the MAD clipping limits
             #and plotting them as X's on the residuals plot
             outlier_mask = ((res[sel] < MAD_res.lower) | (res[sel] > MAD_res.upper))
             if np.any(outlier_mask):
-                ax.plot(self.s.mtime[sel][outlier_mask] - time_offset,
-                        res[sel][outlier_mask], 'x', mfc='none',
-                        mec='red', mew=1, ms=10, zorder = 4, label='outliers')
+                # Plot outliers and ensure their label appears first in the legend
+                outlier_plot = ax.plot(self.s.mtime[sel][outlier_mask] - time_offset,
+                                      res[sel][outlier_mask],  'x', mfc='none',
+                                        mec='red', mew=1, ms=8,   
+                                       zorder=4, label='outliers')
+
 
             ax.errorbar(self.s.mtime[sel] - time_offset,
-                        res[sel], sig[sel], marker = 'o', linestyle = None, color=f'C{i}')
+                        res[sel], sig[sel], marker = 'o', linestyle = ' ', color=f'C{i}')
 
             #hopefully this works and creates a mask list that is equivalent in 
             #length to the number of data points in the original RV time series, and 
             #matches the order of the instrument array original RV time series
             outliers.append(outlier_mask)
                 
-
         ax.minorticks_on()
-        leg = ax.legend()
+        # Move 'outliers' to the first position in the legend
+        handles, labels = ax.get_legend_handles_labels()
+        if 'outliers' in labels:
+            idx = labels.index('outliers')
+            # Move outliers to the front
+            handles = [handles[idx]] + handles[:idx] + handles[idx+1:]
+            labels = [labels[idx]] + labels[:idx] + labels[idx+1:]
+            leg = ax.legend(handles, labels, prop={'family': 'monospace', 'size': 6})
+        else:
+            leg = ax.legend(prop={'family': 'monospace', 'size': 5})
 
         ax.set_ylabel(f'r [{self.s.units}]')
         if 'remove_50000' in kwargs:
