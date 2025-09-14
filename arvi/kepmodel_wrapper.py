@@ -211,7 +211,7 @@ class model:
         else:
             ax.set_xlabel('BJD - 2400000 [days]')
 
-        flat_outliers = [item for sublist in outliers for item in sublist]
+        flat_outliers = np.asarray([item for sublist in outliers for item in sublist])
         
         return fig, ax, flat_outliers
 

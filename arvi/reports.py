@@ -205,8 +205,11 @@ class REPORTS:
 
         return fig
 
-
-def kepmodel_report(self, fit_keplerians=3, save=None, nasaexo_title=False):
+#moving the plotting functionality of kepmodel_report here, to avoid 
+#having to rerun kepmodel after kepmodel_outlier_report 
+#is called, but the figure produced by kepmodel_report is still
+#desired by the user
+def kepmodel_report_plot_only(self, save=None, nasaexo_title=False):
     import matplotlib.pyplot as plt
     import matplotlib.gridspec as gridspec
     from matplotlib.backends.backend_pdf import PdfPages
@@ -218,16 +221,7 @@ def kepmodel_report(self, fit_keplerians=3, save=None, nasaexo_title=False):
             table._cells[cell]._loc = align
             table._cells[cell]._text.set_horizontalalignment(align) 
 
-    from .kepmodel_wrapper import model
-    m = model(self)
-
-    while fit_keplerians > 0:
-        if m.add_keplerian_from_periodogram():
-            fit_keplerians -= 1
-        else:
-            break
-
-    m.fit()
+    m = self
 
 
     # size = A4
@@ -239,13 +233,13 @@ def kepmodel_report(self, fit_keplerians=3, save=None, nasaexo_title=False):
     ax1 = plt.subplot(gs[0, :])
 
     if nasaexo_title:
-        title = str(self.planets).replace('(', '\n').replace(')', '')
+        title = str(self.s.planets).replace('(', '\n').replace(')', '')
         star, planets = title.split('\n')
         planets = planets.replace('planets,', 'known planets\n')
         ax1.set_title(star, loc='left', fontsize=14)
         ax1.set_title(planets, loc='right', fontsize=10)
     else:
-        title = f'{self.star}'
+        title = f'{self.s.star}'
         ax1.set_title(title, loc='left', fontsize=14)
     # ax1.set_title(r"\href{http://www.google.com}{link}", color='blue',
     #               loc='center')
@@ -311,6 +305,26 @@ def kepmodel_report(self, fit_keplerians=3, save=None, nasaexo_title=False):
 
     return fig, m
 
+def kepmodel_report(self, fit_keplerians=3, save=None, nasaexo_title=False):
+    logger = setup_logger()
+
+
+    from .kepmodel_wrapper import model
+    m = model(self)
+
+    while fit_keplerians > 0:
+        if m.add_keplerian_from_periodogram():
+            fit_keplerians -= 1
+        else:
+            break
+
+    m.fit()
+
+    fig, n = kepmodel_report_plot_only(m, save=save, nasaexo_title=nasaexo_title)
+
+
+    return fig, n
+
 
 
 def kepmodel_outlier_report(self, fit_keplerians=3, mad_threshold = 5, save=None, nasaexo_title=False):
@@ -318,12 +332,6 @@ def kepmodel_outlier_report(self, fit_keplerians=3, mad_threshold = 5, save=None
     import matplotlib.gridspec as gridspec
     from matplotlib.backends.backend_pdf import PdfPages
     logger = setup_logger()
-
-    def set_align_for_column(table, col, align="left"):
-        cells = [key for key in table._cells if key[1] == col]
-        for cell in cells:
-            table._cells[cell]._loc = align
-            table._cells[cell]._text.set_horizontalalignment(align) 
 
     from .kepmodel_wrapper import model
     m = model(self)
