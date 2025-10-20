@@ -72,7 +72,9 @@ weighted_median = partial(weighted_quantiles_interpolate, quantiles=0.5)
 def sigmaclip_median(a, low=4.0, high=4.0, k=1/norm.ppf(3/4)):
     """
     Same as scipy.stats.sigmaclip but using the median and median absolute
-    deviation instead of the mean and standard deviation.
+    deviation instead of the mean and standard deviation.  Edited to include
+    the number of iterations of MAD clipping that were performed, as well as 
+    the median value.  
 
     Args:
         a (array):
@@ -90,11 +92,15 @@ def sigmaclip_median(a, low=4.0, high=4.0, k=1/norm.ppf(3/4)):
             - `clipped`: Masked array of data
             - `lower`: Lower clipping limit
             - `upper`: Upper clipping limit
+        c_median: Median of the clipped data.
+        n_iterations: Number of iterations performed.
+        
     """
     from scipy.stats import median_abs_deviation
     from scipy.stats._stats_py import SigmaclipResult
     c = np.asarray(a).ravel()
     delta = 1
+    n_iterations = 0
     while delta:
         c_mad = median_abs_deviation(c) * k
         c_median = np.median(c)
@@ -103,35 +109,7 @@ def sigmaclip_median(a, low=4.0, high=4.0, k=1/norm.ppf(3/4)):
         critupper = c_median + c_mad * high
         c = c[(c >= critlower) & (c <= critupper)]
         delta = size - c.size
+        n_iterations += 1
 
-    return SigmaclipResult(c, critlower, critupper)
+    return SigmaclipResult(c, critlower, critupper), c_median, n_iterations
 
-#need to discuss the differences between this function and the one in arvi.stats
-#with João!!
-def sigmaclip_median_custom(a, low=4.0, high=4.0):
-    """
-    Same as arvi.stats.sigmaclip_median but without performing 
-    MAD clipping iteratively, and instead only MAD clipping once.
-
-    Args:
-        a (array): Array containing data
-        low (float): Number of MAD to use for the lower clipping limit
-        high (float): Number of MAD to use for the upper clipping limit
-    Returns:
-        SigmaclipResult: Object with the following attributes:
-            - `clipped`: Masked array of data
-            - `lower`: Lower clipping limit
-            - `upper`: Upper clipping limit
-    """
-    from scipy.stats import median_abs_deviation
-    from scipy.stats._stats_py import SigmaclipResult
-    c = np.asarray(a).ravel()
-    
-    c_mad = median_abs_deviation(c)
-    c_median = np.median(c)
-    size = c.size
-    critlower = c_median - c_mad * low
-    critupper = c_median + c_mad * high
-    c = c[(c >= critlower) & (c <= critupper)]
-
-    return SigmaclipResult(c, critlower, critupper), c_median
