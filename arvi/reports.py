@@ -327,7 +327,7 @@ def kepmodel_report(self, fit_keplerians=3, save=None, nasaexo_title=False):
 
 
 
-def kepmodel_outlier_report(self, fit_keplerians=3, mad_threshold = 5, save=None, nasaexo_title=False):
+def kepmodel_outlier_report(self, fit_keplerians=3, mad_threshold = 5, nasaexo_title=False):
     import matplotlib.pyplot as plt
     import matplotlib.gridspec as gridspec
     from matplotlib.backends.backend_pdf import PdfPages
