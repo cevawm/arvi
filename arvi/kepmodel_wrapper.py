@@ -9,7 +9,7 @@ from spleaf.term import Error, InstrumentJitter
 
 from .setup_logger import setup_logger
 from .utils import timer, adjust_lightness
-from .stats import sigmaclip_median_custom as doMADclip
+from .stats import sigmaclip_median as doMADclip
 
 
 class model:
@@ -162,7 +162,8 @@ class model:
             color = adjust_lightness(f'C{i}', 1.2)
             
             #getting the MAD clipping limits and median value for the current instrument residuals
-            MAD_res, median = doMADclip(res[sel], low=mad_threshold, high=mad_threshold)
+            MAD_res, median, n_int = doMADclip(res[sel], low=mad_threshold, high=mad_threshold)
+            print("Number of iterations performed in MAD clipping:", n_int)
 
             #plotting the median residual value for the current intrument
             x = np.array([inst.mtime.min(), inst.mtime.max()]) - time_offset

@@ -107,6 +107,7 @@ def sigmaclip_median(a, low=4.0, high=4.0, k=1/norm.ppf(3/4)):
         size = c.size
         critlower = c_median - c_mad * low
         critupper = c_median + c_mad * high
+        print("Iteration", n_iterations+1, ": median =", c_median, ", MAD =", c_mad, ", lower limit =", critlower, ", upper limit =", critupper)
         c = c[(c >= critlower) & (c <= critupper)]
         delta = size - c.size
         n_iterations += 1
