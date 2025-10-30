@@ -4,7 +4,7 @@ from typing import Union
 from functools import partial, partialmethod
 from glob import glob
 import warnings
-from copy import deepcopy
+from copy import copy, deepcopy
 from datetime import datetime, timezone
 
 import numpy as np
@@ -1732,7 +1732,8 @@ class RV(ISSUES, REPORTS):
             n_before = (self.obs < self.obs[m]).sum()
             getattr(self, inst).mask[m - n_before] = False
         if _remove_instrument:
-            for inst in self.instruments:
+            instruments = copy(self.instruments)
+            for inst in instruments:
                 if getattr(self, inst).mtime.size == 0:
                     self.remove_instrument(inst, strict=True)
 
