@@ -236,15 +236,22 @@ class model:
                                     mec='black', mew=1.4, ms=6.75,
                                     zorder=3.9)
 
+
+            # combine the two "outliers" artists into a single legend entry
+            handles, labels = ax.get_legend_handles_labels()
+            handles.append((outlier_plot2[0], outlier_plot1[0]))
+            labels.append('outliers')
+
+            ax.legend(handles, labels, prop={'family': 'monospace', 'size': 6})
+
+        else:
+
+            ax.legend(prop={'family': 'monospace', 'size': 6})
+
+
         ax.minorticks_on()
 
-        # combine the two "outliers" artists into a single legend entry
-        handles, labels = ax.get_legend_handles_labels()
-        handles.append((outlier_plot2[0], outlier_plot1[0]))
-        labels.append('outliers')
 
-        ax.legend(handles, labels, prop={'family': 'monospace', 'size': 6})
-       
         ax.set_ylabel(f'r [{self.s.units}]')
         if 'remove_50000' in kwargs:
             ax.set_xlabel('BJD - 2450000 [days]')
