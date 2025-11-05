@@ -166,9 +166,16 @@ class model:
             fig, ax = plt.subplots(1, 1, constrained_layout=True)
 
         outliers = []
+        outliers_res_only = []
         for i, inst in enumerate(self.s):
             inst_name = inst.instruments[0].replace('-', '_')
             sel = self.s.instrument_array[self.s.mask] == inst_name
+        
+            #keeping track of the indices of RV points that the residuals correspond to,
+            #versus the masked points that were not included in the kepmodel fitting,
+            #in order to be able to an outlier mask that is the same size as the original RV time series
+            sel_indices = np.argwhere(inst.mask)
+            sel_invindices = np.argwhere(~inst.mask)
 
             color = adjust_lightness(f'C{i}', 1.2)
             
@@ -187,14 +194,7 @@ class model:
             ax.plot(x, yup, ls=':', color=color)
 
             #identifying the outlier points based on the MAD clipping limits
-            #and plotting them as X's on the residuals plot
             outlier_mask = ((res[sel] < MAD_res.lower) | (res[sel] > MAD_res.upper))
-            if np.any(outlier_mask):
-                # Plot outliers and ensure their label appears first in the legend
-                outlier_plot = ax.plot(self.s.mtime[sel][outlier_mask] - time_offset,
-                                      res[sel][outlier_mask],  'x', mfc='none',
-                                        mec='red', mew=1, ms=8,   
-                                       zorder=4, label='outliers')
 
 
             ax.errorbar(self.s.mtime[sel] - time_offset,
@@ -203,20 +203,48 @@ class model:
             #hopefully this works and creates a mask list that is equivalent in 
             #length to the number of data points in the original RV time series, and 
             #matches the order of the instrument array original RV time series
-            outliers.append(outlier_mask)
-                
-        ax.minorticks_on()
-        # Move 'outliers' to the first position in the legend
-        handles, labels = ax.get_legend_handles_labels()
-        if 'outliers' in labels:
-            idx = labels.index('outliers')
-            # Move outliers to the front
-            handles = [handles[idx]] + handles[:idx] + handles[idx+1:]
-            labels = [labels[idx]] + labels[:idx] + labels[idx+1:]
-            leg = ax.legend(handles, labels, prop={'family': 'monospace', 'size': 6})
-        else:
-            leg = ax.legend(prop={'family': 'monospace', 'size': 5})
+            outlier_mask_pad = np.zeros(len(sel_invindices), dtype=bool)
 
+            # build a full-length mask for this instrument aligned with the original time series
+            sel_idx = sel_indices.ravel()
+            sel_inv_idx = sel_invindices.ravel()
+            n_total = len(inst.mask)
+            combined_outlier_mask = np.zeros(n_total, dtype=bool)
+
+            if sel_idx.size:
+                combined_outlier_mask[sel_idx] = outlier_mask
+            if sel_inv_idx.size:
+                combined_outlier_mask[sel_inv_idx] = outlier_mask_pad
+
+            outliers.append(combined_outlier_mask)
+
+            #for plotting the outliers on the residuals plot only
+            outliers_res_only.append(outlier_mask)
+        
+
+        flat_outliers_res_only = np.asarray([item for sublist in outliers_res_only for item in sublist])
+
+        #plotting the outliers as X's on the residuals plot
+        if np.any(flat_outliers_res_only):
+            outlier_plot1 = ax.plot(self.s.mtime[flat_outliers_res_only] - time_offset,
+                                    res[flat_outliers_res_only],  'x', mfc='none',
+                                    mec='red', mew=0.4, ms=6,
+                                    zorder=4)
+            
+            outlier_plot2 = ax.plot(self.s.mtime[flat_outliers_res_only] - time_offset,
+                                    res[flat_outliers_res_only],  'x', mfc='none',
+                                    mec='black', mew=1.4, ms=6.75,
+                                    zorder=3.9)
+
+        ax.minorticks_on()
+
+        # combine the two "outliers" artists into a single legend entry
+        handles, labels = ax.get_legend_handles_labels()
+        handles.append((outlier_plot2[0], outlier_plot1[0]))
+        labels.append('outliers')
+
+        ax.legend(handles, labels, prop={'family': 'monospace', 'size': 6})
+       
         ax.set_ylabel(f'r [{self.s.units}]')
         if 'remove_50000' in kwargs:
             ax.set_xlabel('BJD - 2450000 [days]')
