@@ -832,6 +832,7 @@ def gls_quantity(self, quantity, ax=None, instrument=None,
             Whether to adjust (subtract) the weighted means of each instrument.
             Default is `config.adjust_means_gls`.
     """
+    from scipy.signal import find_peaks
     logger = setup_logger()
     if not hasattr(self, quantity):
         if self.verbose:
@@ -919,7 +920,26 @@ def gls_quantity(self, quantity, ax=None, instrument=None,
         #     logger.warning('FAP is high (>5%), the analytical estimate may be underestimated. Using the bootstrap method instead.')
         #     fap = gls.false_alarm_level(fap_level, method='bootstrap', **kw)
 
-        ax.axhline(fap, color='k', alpha=0.2, zorder=-1)
+        ax.axhline(fap, color='k', alpha=0.2, zorder=-1, label=f'FAP: {fap_level:.0%}')
+
+        peak_locs, _ = find_peaks(power)
+
+        sig_peak_inds = peak_locs[power[peak_locs] > fap]
+
+        if sig_peak_inds.size > 0:
+            sig_peak_periods = 1/freq[sig_peak_inds]
+            sig_peak_powers = power[sig_peak_inds]
+
+            for sig_p_p in sig_peak_periods:
+                ax.axvline(sig_p_p, color='r', alpha=0.2, zorder=-1, label=f'{sig_p_p:.1f} days')
+        else:
+            sig_peak_periods = []
+            sig_peak_powers = []
+
+        ax.legend(loc='best', fontsize=6, framealpha=0.5)
+    else:
+        sig_peak_periods = []
+        sig_peak_powers = []
 
     ax.set(xlabel='Period [days]', ylabel='Normalized power', ylim=(0, None))
     ax.minorticks_on()
@@ -927,7 +947,7 @@ def gls_quantity(self, quantity, ax=None, instrument=None,
     if config.return_self:
         return self
     else:
-        return fig, ax
+        return fig, ax, sig_peak_periods, sig_peak_powers
 
 
 gls_fwhm = partialmethod(gls_quantity, quantity='fwhm')
