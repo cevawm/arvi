@@ -94,9 +94,11 @@ class RV(ISSUES, REPORTS):
     do_sigma_clip: bool = field(init=True, repr=False, default=False)
     do_adjust_means: bool = field(init=True, repr=False, default=True)
     only_latest_pipeline: bool = field(init=True, repr=False, default=True)
+    only_main_mode: bool = field(init=True, repr=False, default=True)
     load_extra_data: Union[bool, str] = field(init=True, repr=False, default=False)
     check_drs_qc: bool = field(init=True, repr=False, default=True)
     check_sophie_archive: bool = field(init=True, repr=False, default=False)
+    skip_queries: bool = field(init=True, repr=False, default=False)
     user: Union[str, None] = field(init=True, repr=False, default=None)
     #
     units = 'm/s'
@@ -234,11 +236,12 @@ class RV(ISSUES, REPORTS):
                 if config.check_internet and not there_is_internet():
                     raise ConnectionError('There is no internet connection?')
 
-                # make Simbad and Gaia queries in parallel
-                import concurrent.futures
-                with timer('simbad and gaia queries'):
-                    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-                        executor.map(self.__getattribute__, ('simbad', 'gaia', 'toi'))
+                if not self.skip_queries:
+                    # make Simbad and Gaia queries in parallel
+                    import concurrent.futures
+                    with timer('simbad and gaia queries'):
+                        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+                            executor.map(self.__getattribute__, ('simbad', 'gaia', 'toi'))
 
                 # with timer('simbad query'):
                 #     self.simbad
@@ -283,9 +286,11 @@ class RV(ISSUES, REPORTS):
             return s
 
         # build children
+        names = []
         if not self._child:
             arrays = get_arrays(self.dace_result,
                                 only_latest_pipeline=self.only_latest_pipeline,
+                                only_main_mode=self.only_main_mode,
                                 verbose=self.verbose)
 
             for (inst, pipe, mode), data in arrays:
@@ -293,20 +298,26 @@ class RV(ISSUES, REPORTS):
                                           check_drs_qc=self.check_drs_qc, verbose=self.verbose)
                 inst = do_replacements(inst)
                 pipe = do_replacements(pipe)
-                if self.only_latest_pipeline:
-                    # save as self.INST
-                    setattr(self, inst, child)
-                else:
-                    # save as self.INST_PIPE
-                    setattr(self, f'{inst}_{pipe}', child)
+                mode = do_replacements(mode)
+
+                # save as self.INST by default
+                name = inst
+                if not self.only_latest_pipeline:
+                    name += f'_{pipe}' # add pipeline
+                if not self.only_main_mode:
+                    name += f'_{mode}' # add mode
+
+                setattr(self, name, child) 
+                names.append(name)
 
         # build joint arrays
         if not self._child:
             #! sorted?
-            if self.only_latest_pipeline:
-                self.instruments = [do_replacements(inst) for (inst, _, _), _ in arrays]
-            else:
-                self.instruments = [do_replacements(inst) + '_' + do_replacements(pipe) for (inst, pipe, _), _ in arrays]
+            self.instruments = names
+            # if self.only_latest_pipeline:
+            #     self.instruments = [do_replacements(inst) for (inst, _, _), _ in arrays]
+            # else:
+            #     self.instruments = [do_replacements(inst) + '_' + do_replacements(pipe) for (inst, pipe, _), _ in arrays]
             # all other quantities
             self._build_arrays()
 
@@ -1675,6 +1686,12 @@ class RV(ISSUES, REPORTS):
         for inst in singles:
             self.remove_instrument(inst, strict=True)
 
+    def remove_less_than_n_observations(self, n):
+        """ Remove instruments for which there are *fewer* than `n` observations """
+        fewer = [i for i in self.instruments if getattr(self, i).mtime.size < n]
+        for inst in fewer:
+            self.remove_instrument(inst, strict=True)
+
     def remove_more_than_n_per_night(self, n=2):
         """ Remove whenever there are more than `n` observations per night """
         ind = np.array([], dtype=int)
@@ -1799,6 +1816,9 @@ class RV(ISSUES, REPORTS):
         """
         # don't do it twice
         if self._did_secular_acceleration and not just_compute:
+            return
+        # don't do it if simbad and gaia queries were skipped
+        if self.skip_queries:
             return
 
         from astropy import units
@@ -2714,13 +2734,16 @@ class RV(ISSUES, REPORTS):
 
         return files
 
-    def checksum(self, write_to=None):
-        """ Calculate a hash based on the data """
+    def checksum(self, masked=False, write_to_file=None):
+        """ Calculate a hash based on the (masked?) data """
         from hashlib import md5
-        d = np.r_[self.time, self.vrad, self.svrad]
+        if masked:
+            d = np.r_[self.mtime, self.mvrad, self.msvrad]
+        else:
+            d = np.r_[self.time, self.vrad, self.svrad]
         H = md5(d.data.tobytes()).hexdigest()
-        if write_to is not None:
-            with open(write_to, 'w') as f:
+        if write_to_file is not None:
+            with open(write_to_file, 'w') as f:
                 f.write(H)
         return H
 
