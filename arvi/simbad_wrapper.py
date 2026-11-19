@@ -20,6 +20,7 @@ DATA_PATH = os.path.join(DATA_PATH, 'data')
 
 SIMBAD_URL = "http://simbad.u-strasbg.fr"
 SIMBAD_MIRROR_URL = "https://simbad.cfa.harvard.edu"
+SIMBAD_MIRROR2_URL = "https://simbad.idia.ac.za/"
 
 QUERY = """
 SELECT id, basic.OID,
@@ -132,7 +133,7 @@ def run_query(query, simbad_url=SIMBAD_URL, timeout=5):
     }
     last_err = None
     # the main server, then the mirror
-    for base_url in dict.fromkeys([simbad_url, SIMBAD_MIRROR_URL]):
+    for base_url in dict.fromkeys([simbad_url, SIMBAD_MIRROR_URL, SIMBAD_MIRROR2_URL]):
         url = f'{base_url}/simbad/sim-tap/sync'
         try:
             response = requests.post(url, data=data, timeout=timeout)
