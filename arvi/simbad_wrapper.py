@@ -3,7 +3,7 @@ import os
 from urllib.error import URLError
 import requests
 from dataclasses import dataclass
-from functools import lru_cache, partial
+from functools import partial
 
 import numpy as np
 
@@ -113,9 +113,16 @@ class Measurements:
     bibcode: list
 
 
-@lru_cache
+_query_cache = {}
+
+
 def run_query(query, simbad_url=SIMBAD_URL, timeout=5):
-    url = f'{simbad_url}/simbad/sim-tap/sync'
+    # only successful responses are cached, so that retrying a failed query
+    # actually sends it again
+    key = (query, simbad_url)
+    if key in _query_cache:
+        return _query_cache[key]
+
     data = {
         "query": query,
         "request": "doQuery",
@@ -123,16 +130,24 @@ def run_query(query, simbad_url=SIMBAD_URL, timeout=5):
         "format": "text/plain",
         "phase": "run",
     }
-    try:
-        response = requests.post(url, data=data, timeout=timeout)
-    except (requests.ReadTimeout, requests.ConnectionError) as err:
-        # try the mirror
-        url = f'{SIMBAD_MIRROR_URL}/simbad/sim-tap/sync'
+    last_err = None
+    # the main server, then the mirror
+    for base_url in dict.fromkeys([simbad_url, SIMBAD_MIRROR_URL]):
+        url = f'{base_url}/simbad/sim-tap/sync'
         try:
             response = requests.post(url, data=data, timeout=timeout)
-        except (requests.ReadTimeout, requests.ConnectionError) as err:
-            raise IndexError(err) from None
-    return response.content.decode()
+        except (requests.Timeout, requests.ConnectionError) as err:
+            last_err = err
+            continue
+        text = response.content.decode(errors='replace')
+        # a down/overloaded server can answer with an HTTP error or an
+        # HTML/VOTable error document instead of a table: try the other one
+        if not response.ok or text.lstrip().startswith('<'):
+            last_err = f'{base_url} returned HTTP {response.status_code}: {text[:200]!r}'
+            continue
+        _query_cache[key] = text
+        return text
+    raise IndexError(last_err)
 
 def parse_table1(table, cols=None, values=None):
     header = table.splitlines()[0].split('|')
